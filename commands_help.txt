@@ -1,0 +1,10 @@
+hierarchy of the commands
+
+vendor; platform; category; version; command; description; example
+
+
+export commands format
+
+show bgp
+show ip
+

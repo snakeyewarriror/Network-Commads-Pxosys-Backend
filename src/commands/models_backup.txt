@@ -1,0 +1,115 @@
+from django.db import models
+from django.contrib.auth import get_user_model
+from django.core.validators import RegexValidator
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _t
+
+
+NAME_MAX_LENGTH = 122
+COMMAND_MAX_LENGTH = 255
+DESCRIPTION_MAX_LENGTH = 500
+EXAMPLE_MAX_LENGTH = 255
+VERSION_MAX_LENGTH = 20
+
+User = get_user_model()
+
+
+# Validators
+
+version_validator = RegexValidator(
+    regex=r'^\d+(\.\d+)+(\([0-9]+\))?([A-Za-z])?$',
+    message="Enter a valid version number (e.g., 15.2.3, 15.2(3)T)"
+)
+
+
+# Vendor Model
+class Vendor(models.Model):
+    name = models.CharField(max_length=NAME_MAX_LENGTH, verbose_name=_t("Vendor Name"))
+    date_created = models.DateTimeField(default=timezone.now, verbose_name=_t("Created At"))
+    date_updated = models.DateTimeField(auto_now=True, verbose_name=_t("Updated At"))
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="vendors_created",
+        verbose_name="Created By"
+    )
+
+    def __str__(self) -> str:
+        return self.name
+#:
+
+
+# OS Model
+class OS(models.Model):
+    name = models.CharField(max_length=NAME_MAX_LENGTH, verbose_name=_t("OS"), null=False, blank=False)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="oses_created",
+        verbose_name="Created By"
+    )
+    
+    # ForeignKey relationships
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='oses', verbose_name=_t("Vendor"))
+
+    def __str__(self):
+        return f"{self.name} ({self.vendor.name})"
+#:
+
+
+# Command Category Model
+class Category(models.Model):
+    name = models.CharField(max_length=NAME_MAX_LENGTH, verbose_name=_t("Command Category"), null=False, blank=False)
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
+    parent = models.ForeignKey('self', null=True, blank=True, related_name='subcategories', on_delete=models.CASCADE)
+    date_created = models.DateTimeField(default=timezone.now, verbose_name=_t("Created At"))
+    date_updated = models.DateTimeField(auto_now=True, verbose_name=_t("Updated At"))
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="categories_created",
+        verbose_name="Created By"
+    )
+
+    def __str__(self) -> str:
+        # Recursive function to build the full path
+        def get_full_path(category):
+            if category.parent:
+                return f"{get_full_path(category.parent)}/{category.name}"
+            return category.name
+        return get_full_path(self)
+
+    # Add a property to easily check if it has subcategories
+    @property
+    def has_subcategories(self):
+        return self.subcategories.exists()
+
+    class Meta:
+        verbose_name_plural = "Categories" # Good practice for Django Admin
+        ordering = ['name'] # Order categories alphabetically
+#:
+
+
+# Command Model
+class Commands(models.Model):
+    command = models.CharField(max_length=COMMAND_MAX_LENGTH, verbose_name=_t("Command"), null=False, blank=False)
+    description = models.TextField(max_length=DESCRIPTION_MAX_LENGTH, verbose_name=_t("Description"), null=True, blank=True)
+    example = models.TextField(max_length=EXAMPLE_MAX_LENGTH, verbose_name=_t("Example"), null=True, blank=True)
+    version = models.CharField(max_length=VERSION_MAX_LENGTH, validators=[version_validator], verbose_name=_t("Version"), null=True, blank=True)
+    date_created = models.DateTimeField(default=timezone.now, verbose_name=_t("Created At"))
+    date_updated = models.DateTimeField(auto_now=True, verbose_name=_t("Updated At"))
+    
+    # ForeignKey relationships
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='vendors',verbose_name=_t("Vendor"), null=False, blank=True)
+    os = models.ForeignKey(OS, on_delete=models.SET_NULL, related_name="oses",verbose_name=_t("OS"), null=True, blank=True)
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, related_name="categories", verbose_name=_t("Category"), null=True, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="commands_created",
+        verbose_name="Created By"
+    )
+    
+    def __str__(self) -> str:
+        return self.command  
+#:

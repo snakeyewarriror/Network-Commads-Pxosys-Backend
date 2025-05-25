@@ -1,0 +1,85 @@
+
+vendor : cisco
+os     : nxos
+version: 9.3
+
+Value                | command
+---------------------|--------------------------------------------------
+psu                  | show environment power
+                     | show inventory
+fan                  | show environment fan
+inventory            | show inventory
+module               | show module
+snmp traps           | show snmp host
+snmp community       | show snmp
+interface            | show interface
+                     | show ip interface vif all
+                     | show interface trunk
+cdp                  | show cdp neighbors detail
+                     | show lldp neighbors detail
+lldp                 | show lldp neighbors
+stp                  | show spanning-tree
+                     | show spanning-tree summary
+time                 | show ntp peer
+                     | show ntp peer-status
+                     | show ntp access groups
+                     | show ntp status
+                     | show ntp source
+                     | show ntp source-interface
+                     | show ntp authentication-keys
+                     | show ntp authentication-status
+logging              | show logging
+dns                  | show hosts
+arp                  | show mac address-table
+                     | show ip arp vif all
+                     | show ip interface vif all
+poe                  | -------
+stack - Power        | -------
+stack - Data         | -------
+routing - Static     | show running-config
+routing - BGP        | -------
+routing - Current RIB| show ip route vrf all
+routing - VRF        | show vrf all detail
+                     | show ip interface vif all
+
+
+vendor : cisco
+os     : ios_xe
+version: 16.9
+
+Value                | command
+---------------------|--------------------------------------------------
+psu                  | show environment power
+fan                  | show environment fan
+module               | show module
+Snmp traps           | show snmp host
+Snmp community       | show snmp community
+interface            | show interface
+                     | show ip interface
+                     | show running-config
+cdp                  | show cdp neighbors detail
+                     | show cdp neighbors
+lldp                 | show lldp neighbors detail
+                     | show lldp neighbors
+stp                  | show spanning-tree
+                     | show spanning-tree summary
+time                 | show ntp status
+                     | show ntp associations
+                     | show running-config (src_if)
+logging              | show logging
+dns                  | show ip dns servers
+                     | show ip dns name-list
+                     | show ip dns statistics
+arp                  | show mac address-table
+                     | show ip arp
+                     | show ip arp vrf <name>
+poe                  | show power inline module [module-id]
+stack - Power        | show stack-power
+                     | show stack-power detail
+                     | show stack-power load-shedding
+                     | show stack-power budgeting
+stack - Data         | show switch stack-ring speed
+                     | show switch
+                     | show switch stack-bandwidth
+                     | show switch stack-mode
+

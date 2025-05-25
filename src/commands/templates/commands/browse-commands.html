@@ -1,0 +1,85 @@
+{% extends base_template %}
+{% load i18n %}
+
+{% block content %}
+
+    {% if commands %}
+
+        <form method="POST" action="{% url 'search-commands' %}">
+
+            {% csrf_token %}
+
+            <input type="text" name="searched" placeholder="Search commands...">
+            <button type="submit">Search</button>
+        </form>
+
+        <!-- Trigger button -->
+        <div class="dropdown">
+        <button class="btn btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-funnel-fill"></i> Filters
+        </button>
+
+        <!-- Filter Form -->
+        <div class="dropdown-menu p-4" style="min-width: 350px;">
+            <form method="POST" action="{% url 'search-commands' %}">
+
+            {% csrf_token %}
+            
+            <div class="mb-2">
+                <input type="text" name="command" class="form-control" placeholder="Enter Command">
+            </div>
+            
+            <div class="mb-2">
+                <select name="vendor" class="form-select">
+                <option value="">All Vendors</option>
+                {% for vendor in vendors %}
+                    <option value="{{ vendor.id }}">{{ vendor.name }}</option>
+                {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-2">
+                <select name="os" class="form-select">
+                <option value="">All OS</option>
+                {% for os in oses %}
+                    <option value="{{ os.id }}">{{ os.name }}</option>
+                {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Apply</button>
+            </form>
+        </div>
+        </div>
+
+
+
+        {% for command in commands %}
+            <div class='container bg-white shadow mt-5 p-5 form-layout text-start'>
+                <h3> {{ command.command }} </h3>
+
+                <br>
+                <p><strong>Value:</strong> {{ command.value.name }} 
+                    <strong>Version:</strong> {{ command.version }} 
+                    <strong>Vendor:</strong> {{ command.vendor.name }} 
+                    <strong>OS:</strong> {{ command.os.name }}
+                </p>
+
+                <br>
+                <p><strong>Description:</strong> {{ command.description }} </p>
+                <p><strong>Example:</strong> {{ command.example }} </p>
+            </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <div class='container bg-white shadow mt-5 p-5 form-layout text-center'>
+            <p>
+                <strong>
+                    <em> {% translate 'No commands found' %} </em>
+                </strong>
+            </p>
+    {% endif %}
+
+{% endblock content%}

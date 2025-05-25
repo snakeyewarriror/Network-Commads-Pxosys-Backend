@@ -1,0 +1,41 @@
+{% extends base_template %}
+{% load i18n %}
+
+{% block content %}
+    
+
+    <div class='container bg-white shadow mt-5 p-5 form-layout text-start'>
+        <p><strong>Search Results: {{ searched }}</strong></p>
+    </div>
+    
+    {% if commands %}
+
+        {% for command in commands %}
+
+            <div class='container bg-white shadow mt-5 p-5 form-layout text-start'>
+                <h3> {{ command.command }} </h3>
+
+                <br>
+                <p><strong>Value:</strong> {{ command.value.name }} 
+                    <strong>Version:</strong> {{ command.version }} 
+                    <strong>Vendor:</strong> {{ command.vendor.name }} 
+                    <strong>OS:</strong> {{ command.os.name }}
+                </p>
+
+                <br>
+                <p><strong>Description:</strong> {{ command.description }} </p>
+            </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <div class='container bg-white shadow mt-5 p-5 form-layout text-center'>
+            <p>
+                <strong>
+                    <em> {% translate 'No commands found' %} </em>
+                </strong>
+            </p>
+    {% endif %}
+
+{% endblock content%}
