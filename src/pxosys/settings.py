@@ -52,7 +52,6 @@ SIMPLE_JWT = {
 
 INSTALLED_APPS = [
     'account.apps.AccountConfig',
-    'user.apps.UserConfig',
     'commands.apps.CommandsConfig',
     'django.contrib.admin',
     'django.contrib.auth',

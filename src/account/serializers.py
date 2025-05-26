@@ -4,6 +4,8 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email as django_validate_email
 from django.utils.translation import gettext_lazy as _t
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth import authenticate
 
 from .models import CustomUser
 
@@ -113,3 +115,42 @@ class CustomUserSerializer(serializers.ModelSerializer):
         return user
     #:
 #:
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        email = attrs.get('email')
+        password = attrs.get('password')
+
+        if email and password:
+            # Check if user exists first (without revealing if password is correct yet)
+            from django.contrib.auth import get_user_model
+            CustomUser = get_user_model() # Use get_user_model() for custom user
+
+            if not CustomUser.objects.filter(email=email).exists():
+                # If email doesn't exist, return a specific error
+                raise serializers.ValidationError(
+                    {"email": "No account found with this email address."}
+                )
+            #:
+
+            # If email exists, try to authenticate
+            user = authenticate(request=self.context.get('request'), email=email, password=password)
+
+            if not user:
+                # If authentication fails (wrong password or inactive user)
+                raise serializers.ValidationError(
+                    {"password": "Incorrect password for this email address."}
+                )
+            #:
+            
+            # If authentication succeeds, proceed with original validation
+            data = super().validate(attrs)
+            return data
+        #:
+
+        else:
+            # If email or password is not provided (should be caught by required=True in serializer fields)
+            raise serializers.ValidationError("Must include 'email' and 'password'.")
+        #:
+#:
+
