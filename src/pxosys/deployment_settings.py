@@ -12,6 +12,10 @@ DEBUG = False
 
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
+CORS_ALLOWED_ORIGINS = [
+    "https://network-commads-pxosys-frontend.onrender.com",
+]
+
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
