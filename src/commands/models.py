@@ -43,39 +43,38 @@ class Vendor(models.Model):
 #:
 
 
-# OS Model
-class OS(models.Model):
+# Platform Model
+class Platform(models.Model):
     name = models.CharField(
         max_length=NAME_MAX_LENGTH,
         unique=True,
-        verbose_name=_t("OS"),
+        verbose_name=_t("Platform"),
         null=False,
         blank=False
     )
     created_by = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name="oses_created",
+        related_name="platforms_created",
         verbose_name="Created By"
     )
     vendor = models.ForeignKey(
         Vendor,
         on_delete=models.CASCADE,
-        related_name='oses',
+        related_name='platforms',
         verbose_name=_t("Vendor")
     )
 
     def __str__(self):
-        return f"{self.name} ({self.vendor.name})"
+        return f"{self.name}"
 #:
 
 
-# Command Category Model
-class Category(models.Model):
+# Command Tag Model
+class Tag(models.Model):
     name = models.CharField(
         max_length=NAME_MAX_LENGTH,
-        unique=True,
-        verbose_name=_t("Command Category"),
+        verbose_name=_t("Command Tag"),
         null=False,
         blank=False
     )
@@ -84,7 +83,7 @@ class Category(models.Model):
         'self',
         null=True,
         blank=True,
-        related_name='subcategories',
+        related_name='subtags',
         on_delete=models.CASCADE
     )
     date_created = models.DateTimeField(default=timezone.now, verbose_name=_t("Created At"))
@@ -92,31 +91,41 @@ class Category(models.Model):
     created_by = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name="categories_created",
+        related_name="tags_created",
         verbose_name="Created By"
     )
 
     def __str__(self) -> str:
-        def get_full_path(category):
-            if category.parent:
-                return f"{get_full_path(category.parent)}/{category.name}"
-            return category.name
+        def get_full_path(tag):
+            if tag.parent:
+                return f"{get_full_path(tag.parent)}/{tag.name}"
+            return tag.name
         return get_full_path(self)
     #:
 
     @property
-    def has_subcategories(self):
-        return self.subcategories.exists()
+    def subtags(self):
+        return self.subtags.exists()
     #:
 
     class Meta:
-        verbose_name_plural = "Categories"
+        verbose_name_plural = "Tags"
         ordering = ['name']
+        unique_together = ('name', 'vendor', 'parent')
 #:
 
-
+    
 # Command Model
 class Commands(models.Model):
+    
+
+    # --- METHOD FIELD OPTIONS ---
+    METHOD_CHOICES = [
+        ('BULK', 'Bulk'),
+        ('SINGULAR', 'Singular'),
+    ]
+    
+    
     command = models.CharField(
         max_length=COMMAND_MAX_LENGTH,
         unique=True,
@@ -124,18 +133,21 @@ class Commands(models.Model):
         null=False,
         blank=False
     )
+    
     description = models.TextField(
         max_length=DESCRIPTION_MAX_LENGTH,
         verbose_name=_t("Description"),
         null=True,
         blank=True
     )
+    
     example = models.TextField(
         max_length=EXAMPLE_MAX_LENGTH,
         verbose_name=_t("Example"),
         null=True,
         blank=True
     )
+    
     version = models.CharField(
         max_length=VERSION_MAX_LENGTH,
         validators=[version_validator],
@@ -143,6 +155,7 @@ class Commands(models.Model):
         null=True,
         blank=True
     )
+    
     date_created = models.DateTimeField(default=timezone.now, verbose_name=_t("Created At"))
     date_updated = models.DateTimeField(auto_now=True, verbose_name=_t("Updated At"))
 
@@ -154,42 +167,66 @@ class Commands(models.Model):
         null=False,
         blank=False
     )
-    os = models.ForeignKey(
-        OS,
+    platform = models.ForeignKey(
+        Platform,
         on_delete=models.SET_NULL,
         related_name="commands",
-        verbose_name=_t("OS"),
+        verbose_name=_t("Platform"),
         null=True,
         blank=True
     )
-    category = models.ForeignKey(
-        Category,
+    tag = models.ForeignKey(
+        Tag,
         on_delete=models.CASCADE,
         related_name="commands",
-        verbose_name=_t("Category"),
+        verbose_name=_t("Tag"),
         null=True,
         blank=True
     )
+    
+    sub_command = models.CharField(
+        max_length=COMMAND_MAX_LENGTH,
+        verbose_name=_t("Sub Command"),
+        null=True,
+        blank=True
+    )
+    
     created_by = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name="commands_created",
         verbose_name="Created By"
     )
+    
+    method = models.CharField(
+        max_length=12,
+        choices=METHOD_CHOICES,
+        default='SINGULAR', # Set a default
+        verbose_name=_t("Creation Method"),
+        null=False,
+        blank=False
+    )
 
     def __str__(self) -> str:
         return self.command[:50]
 
     def clean(self):
-        # Ensure vendor consistency across category and OS
-        if self.category and self.category.vendor != self.vendor:
-            raise ValidationError("Category vendor must match the command vendor.")
-        if self.os and self.os.vendor != self.vendor:
-            raise ValidationError("OS vendor must match the command vendor.")
+        # Ensure vendor consistency across tag and platform
+        if self.tag and self.tag.vendor != self.vendor:
+            raise ValidationError("Tag vendor must match the command vendor.")
+        if self.platform and self.platform.vendor != self.vendor:
+            raise ValidationError("Platform vendor must match the command vendor.")
 
     class Meta:
         ordering = ['-date_created']
         indexes = [
             models.Index(fields=['command']),
         ]
+#:
+
+
+# Parameter Model
+class CommandParameter(models.Model):
+    command = models.ForeignKey(Commands, on_delete=models.CASCADE, related_name="parameters")
+    value = models.CharField(max_length=COMMAND_MAX_LENGTH)
 #:

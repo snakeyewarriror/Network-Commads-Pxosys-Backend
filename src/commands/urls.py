@@ -1,4 +1,4 @@
-from django.urls import path, include
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from . import views
@@ -6,8 +6,8 @@ from . import views
 default_router_commands = DefaultRouter()
 
 default_router_commands.register(r'vendors', views.AdminVendorViewSet, basename='vendors')
-default_router_commands.register(r'os', views.AdminOSViewSet, basename='os')
-default_router_commands.register(r'categories', views.AdminCategoryViewSet, basename='categories')
+default_router_commands.register(r'platform', views.AdminOSViewSet, basename='platform')
+default_router_commands.register(r'tags', views.AdminTagViewSet, basename='tags')
 default_router_commands.register(r'commands-admin', views.AdminCommandViewSet, basename='commands')
 
 
@@ -26,32 +26,32 @@ urlpatterns = [
     path('vendors/my-delete/<int:pk>/', views.UserVendorDelete.as_view(), name='user-vendor-delete'),
 
 
-    # --- OS Paths ---
-    # Allow any authenticated user to create an OS
-    path('os/create/', views.OSCreateAPIView.as_view(), name='os-create'),
+    # --- Platform Paths ---
+    # Allow any authenticated user to create an Platform
+    path('platform/create/', views.OSCreateAPIView.as_view(), name='platform-create'),
     
-    # List OSes created by the current user
-    path('os/my-list/', views.UserOSListSet.as_view(), name='user-os-list'),
-    # List all OSes
-    path('os/get-all/', views.OSListSet.as_view(), name='os-list'),
+    # List Platforms created by the current user
+    path('platform/my-list/', views.UserOSListSet.as_view(), name='user-platform-list'),
+    # List all Platforms
+    path('platform/get-all/', views.OSListSet.as_view(), name='platform-list'),
     
-    # Delete a specific OS created by the current user (needs primary key)
-    path('os/my-delete/<int:pk>/', views.UserOSDelete.as_view(), name='user-os-delete'),
+    # Delete a specific Platform created by the current user (needs primary key)
+    path('platform/my-delete/<int:pk>/', views.UserOSDelete.as_view(), name='user-platform-delete'),
 
 
-    # --- Category Paths ---
-    # Allow any authenticated user to create a Category
-    path('categories/create/', views.CategoryCreateAPIView.as_view(), name='category-create'),
+    # --- Tag Paths ---
+    # Allow any authenticated user to create a Tag
+    path('tags/create/', views.TagCreateAPIView.as_view(), name='tag-create'),
     
-    # List Categories created by the current user
-    path('categories/my-list/', views.UserCategoryListSet.as_view(), name='user-category-list'),
-    # List all Categories
-    path('categories/get-all/', views.CategoryListSet.as_view(), name='category-list'),
-    # List all Categories
-    path('categories/get-all-tree/', views.CategoryTreeListSet.as_view(), name='category-list-tree'),
+    # List Tags created by the current user
+    path('tags/my-list/', views.UserTagListSet.as_view(), name='user-tag-list'),
+    # List all Tags
+    path('tags/get-all/', views.TagListSet.as_view(), name='tag-list'),
+    # List all Tags
+    path('tags/get-all-tree/', views.TagTreeListSet.as_view(), name='tag-list-tree'),
     
-    # Delete a specific Category created by the current user (needs primary key)
-    path('categories/my-delete/<int:pk>/', views.UserCategoryDelete.as_view(), name='user-category-delete'),
+    # Delete a specific Tag created by the current user (needs primary key)
+    path('tags/my-delete/<int:pk>/', views.UserTagDelete.as_view(), name='user-tag-delete'),
 
 
     # --- Command Paths ---

@@ -9,8 +9,8 @@ class CommandParser:
     def __init__(self, vendor_name: str):
         self.vendor_name = vendor_name
         self.commands_data = []
-        self.categories_data = []
-        self.category_hierarchy = {}
+        self.tags_data = []
+        self.tag_hierarchy = {}
     #:
         
     def detect_encoding(self, data: Union[bytes, str]) -> str:
@@ -33,9 +33,9 @@ class CommandParser:
         return text
     #:
     
-    def is_category_row(self, row: List[str]) -> bool:
+    def is_tag_row(self, row: List[str]) -> bool:
         """
-        Check if a row represents a category based on content in the first column
+        Check if a row represents a tag based on content in the first column
         and emptiness of subsequent columns (Command, Description, Example).
         """
         if not row: # Handle empty rows
@@ -43,34 +43,34 @@ class CommandParser:
         
         first_col_content = row[0].strip()
         
-        # A category row must have content in the first column.
+        # A tag row must have content in the first column.
         if not first_col_content:
             return False
             
-        # A category row should have empty content in the columns where
+        # A tag row should have empty content in the columns where
         # command, description, and example would typically be.
         # Check up to the 4th column (index 3) as per the CSV structure.
 
         # Check column 1 (index 1, where a command might be)
         if len(row) > 1 and row[1].strip():
-            return False # Not a category if the second column has content
+            return False # Not a tag if the second column has content
 
         # Check column 2 (index 2, where a description might be)
         if len(row) > 2 and row[2].strip():
-            return False # Not a category if the third column has content
+            return False # Not a tag if the third column has content
 
         # Check column 3 (index 3, where an example might be)
         if len(row) > 3 and row[3].strip():
-            return False # Not a category if the fourth column has content
+            return False # Not a tag if the fourth column has content
 
-        # If the first column has content and the next three are empty, it's a category.
+        # If the first column has content and the next three are empty, it's a tag.
         return True
     #:
     
     def is_command_row(self, row: List[str]) -> bool:
         """Check if a row represents a command"""
         # Command rows have content in the COMMAND column (index 0 or 1)
-        # and are not identified as category rows
+        # and are not identified as tag rows
         if not row:
             return False
         
@@ -78,28 +78,25 @@ class CommandParser:
         if not command_text and len(row) > 1:
             command_text = self.clean_text(row[1]) # Check second column if first is empty
             
-        return bool(command_text and not self.is_category_row(row))
+        return bool(command_text and not self.is_tag_row(row))
     #:
     
-    def extract_category_info(self, category_name: str) -> Dict[str, str]:
-        """Extract category information and determine parent relationship (placeholder)"""
+    def extract_tag_info(self, tag_name: str) -> Dict[str, str]:
+        """Extract tag information and determine parent relationship (placeholder)"""
         # This method is less critical now as parent logic is handled in parse_csv
-        clean_name = self.clean_text(category_name)
+        clean_name = self.clean_text(tag_name)
         return {'name': clean_name, 'parent': None} # Parent will be set during parsing
     #:
     
-    def parse_csv(self, csv_content: str, main_category: Optional[str] = None) -> Dict: 
+    def parse_csv(self, csv_content: str, main_tag_name_from_input: Optional[str] = None) -> Dict: 
         """
         Parse the CSV content (string) and extract structured data.
-        All categories found in the CSV will have 'main_category' as their parent.
+        All Tags found in the CSV will have 'main_tag_name_from_input' as their conceptual parent.
         """
-        # We assume csv_content is already decoded to utf-8 string
-        # encoding = self.detect_encoding(csv_content.encode('utf-8')) # Not needed if content is string
-        
-        # current_category will hold the *most recently found* category from the CSV
-        current_category = None 
-        # fixed_main_parent will be the fixed main_category provided by the user
-        fixed_main_parent = main_category 
+        # current_tag will hold the *most recently found* tag name from the CSV
+        current_tag = None 
+        # fixed_main_parent_name will be the main_tag name provided by the user (from the form)
+        fixed_main_parent_name = main_tag_name_from_input 
         
         try:
             # Use io.StringIO to treat the string content as a file
@@ -115,9 +112,9 @@ class CommandParser:
                 if row_num == 1 and 'WARNING!!' in str(row):
                     continue
                 # More robust header check
-                if any(header.strip().lower() in ['command', 'description', 'example', 'category', 'os', 'version'] for header in row[:4]):
+                if any(header.strip().lower() in ['command', 'description', 'example', 'tag', 'platform', 'version'] for header in row[:4]):
                     # If the first row is a header, skip it. If second row is header after warning, skip it.
-                    if row_num == 1 or (row_num == 2 and 'WARNING!!' in csv_content): # Simplified check for warning presence
+                    if row_num == 1 or (row_num == 2 and 'WARNING!!' in csv_content):
                         continue 
                     continue # Skip if it looks like a header row later in file
                 
@@ -125,25 +122,25 @@ class CommandParser:
                 while len(row) < 4:
                     row.append('')
                 
-                # Check if this is a category row
-                if self.is_category_row(row):
-                    category_name_raw = row[0]
-                    category_name = self.clean_text(category_name_raw)
+                # Check if this is a tag row
+                if self.is_tag_row(row):
+                    tag_name_raw = row[0]
+                    tag_name = self.clean_text(tag_name_raw)
                     
-                    if category_name:
-                        # The 'current_category' is always the one just found in the CSV
-                        current_category = category_name 
+                    if tag_name:
+                        # The 'current_tag' is always the one just found in the CSV
+                        current_tag = tag_name 
                         
-                        # All categories found in the CSV will have `fixed_main_parent` as their parent
-                        category_info = {
-                            'name': current_category,
-                            'parent': fixed_main_parent, # Fixed parent from user input
+                        # All tags found in the CSV will have `fixed_main_parent_name` as their parent
+                        tag_info = {
+                            'name': current_tag,
+                            'parent_name_from_input': fixed_main_parent_name, # Renamed for clarity
                             'vendor': self.vendor_name
                         }
                         
-                        # Add to categories if not already present (checking name and parent)
-                        if not any(c['name'] == category_info['name'] and c['parent'] == category_info['parent'] for c in self.categories_data):
-                            self.categories_data.append(category_info)
+                        # Add to tags if not already present (checking name and parent_name_from_input)
+                        if not any(c['name'] == tag_info['name'] and c['parent_name_from_input'] == tag_info['parent_name_from_input'] for c in self.tags_data):
+                            self.tags_data.append(tag_info)
                 
                 # Check if this is a command row
                 elif self.is_command_row(row):
@@ -156,7 +153,7 @@ class CommandParser:
                             'command': command,
                             'description': description if description else None,
                             'example': example if example else None,
-                            'category': current_category, # Assign the current active category from CSV
+                            'tag': current_tag, # Assign the current active tag from CSV
                             'vendor': self.vendor_name,
                             'version': None  
                         }
@@ -168,54 +165,49 @@ class CommandParser:
         
         return {
             'vendor': self.vendor_name,
-            'categories': self.categories_data,
+            'tags': self.tags_data,
             'commands': self.commands_data
         }
-    
-    # Removed export_to_json as it's not needed if we return the dict directly
-    # def export_to_json(self, data: Dict) -> str:
-    #     """
-    #     Exports the parsed data (vendor, categories, commands) to a JSON string.
-    #     """
-    #     return json.dumps(data, indent=4, ensure_ascii=False)
     #:
 
     def print_summary(self):
         """Print a summary of parsed data"""
         print(f"\n=== PARSING SUMMARY ===")
         print(f"Vendor: {self.vendor_name}")
-        print(f"Categories found: {len(self.categories_data)}")
+        print(f"Tags found: {len(self.tags_data)}")
         print(f"Commands found: {len(self.commands_data)}")
         
-        print(f"\n=== CATEGORIES ===")
-        for cat in self.categories_data:
-            parent_info = f" (parent: {cat['parent']})" if cat['parent'] else " (main category)"
+        print(f"\n=== Tags ===")
+        for cat in self.tags_data:
+            parent_info = f" (parent: {cat['parent_name_from_input']})" if cat['parent_name_from_input'] else " (main tag)"
             print(f"- {cat['name']}{parent_info}")
         
         print(f"\n=== SAMPLE COMMANDS ===")
         for i, cmd in enumerate(self.commands_data[:10]):  # Show first 10
             print(f"{i+1}. Command: {cmd['command']}")
-            print(f"   Category: {cmd['category']}")
+            print(f"   tag: {cmd['tag']}")
             print(f"   Description: {cmd['description'][:100]}..." if cmd['description'] and len(cmd['description']) > 100 else f"   Description: {cmd['description']}")
             print()
         #:
 
 # Usage example (this function will now be called from the view)
-def ParseCsv(vendor_name: str, main_category: Optional[str], csv_file_content: str) -> Dict:
+def ParseCsv(vendor_name: str, main_tag_name_for_csv_context: Optional[str], csv_file_content: str) -> Dict:
     """
     Parses CSV content and returns structured data for Django model insertion.
     
     Args:
         vendor_name (str): The vendor name provided by the user.
-        main_category (Optional[str]): The main category provided by the user.
+        main_tag_name_for_csv_context (Optional[str]): The name of the main tag provided by the user.
+                                                   Tags from CSV will be conceptually linked to this name.
         csv_file_content (str): The decoded content of the CSV file.
 
     Returns:
-        Dict: A dictionary containing 'vendor', 'categories', and 'commands' data.
+        Dict: A dictionary containing 'vendor', 'tags', and 'commands' data.
     """
     
     parser = CommandParser(vendor_name=vendor_name)
-    parsed_data = parser.parse_csv(csv_file_content, main_category=main_category)
+    # Pass the name string as the argument to the parser
+    parsed_data = parser.parse_csv(csv_file_content, main_tag_name_from_input=main_tag_name_for_csv_context)
     
     return parsed_data
 #:

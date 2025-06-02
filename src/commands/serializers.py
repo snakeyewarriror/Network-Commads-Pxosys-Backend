@@ -3,7 +3,7 @@ from rest_framework.serializers import ModelSerializer, StringRelatedField, Seri
 
 from rest_framework import serializers
 
-from .models import Vendor, OS, Category, Commands
+from .models import Vendor, Platform, Tag, Commands
 
 
 # Vendor Model Serializers
@@ -30,10 +30,10 @@ class VendorBasicSerializer(ModelSerializer):
 #:
 
 
-# OS Model Serializers
+# Platform Model Serializers
 class OSFullSerializer(ModelSerializer):
     class Meta:
-        model = OS
+        model = Platform
         fields = '__all__'
         read_only_fields = ['created_by']
 
@@ -42,27 +42,27 @@ class OSFullSerializer(ModelSerializer):
         vendor = data.get('vendor')
         if not name or not vendor: return data # Let DRF's default validators handle missing fields
 
-        queryset = OS.objects.filter(name__iexact=name, vendor=vendor)
+        queryset = Platform.objects.filter(name__iexact=name, vendor=vendor)
         if self.instance:
             if queryset.exclude(pk=self.instance.pk).exists():
-                raise serializers.ValidationError({"name": "An OS with this name already exists for this vendor."})
+                raise serializers.ValidationError({"name": "An Platform with this name already exists for this vendor."})
         else:
             if queryset.exists():
-                raise serializers.ValidationError({"name": "An OS with this name already exists for this vendor."})
+                raise serializers.ValidationError({"name": "An Platform with this name already exists for this vendor."})
         return data
 #:
 
 class OSBasicSerializer(ModelSerializer):
     class Meta:
-        model = OS
+        model = Platform
         fields = ['id', 'name']
 #:
 
 
-# Category Model Serializers
-class CategoryFullSerializer(ModelSerializer):
+# Tag Model Serializers
+class TagFullSerializer(ModelSerializer):
     class Meta:
-        model = Category
+        model = Tag
         fields = '__all__'
         read_only_fields = ['created_by']
 
@@ -73,35 +73,35 @@ class CategoryFullSerializer(ModelSerializer):
 
         if not name or not vendor: return data # Let DRF's default validators handle missing fields
 
-        queryset = Category.objects.filter(name__iexact=name, vendor=vendor, parent=parent)
+        queryset = Tag.objects.filter(name__iexact=name, vendor=vendor, parent=parent)
         if self.instance:
             if queryset.exclude(pk=self.instance.pk).exists():
-                raise serializers.ValidationError({"name": "A category with this name already exists for this vendor under the specified parent."})
+                raise serializers.ValidationError({"name": "A Tag with this name already exists for this vendor under the specified parent."})
         else:
             if queryset.exists():
-                raise serializers.ValidationError({"name": "A category with this name already exists for this vendor under the specified parent."})
+                raise serializers.ValidationError({"name": "A Tag with this name already exists for this vendor under the specified parent."})
         return data
 #:
 
-class CategoryBasicSerializer(ModelSerializer):
+class TagBasicSerializer(ModelSerializer):
     class Meta:
-        model = Category
+        model = Tag
         fields = ['id', 'name']
 #:
 
-class CategoryTreeSerializer(ModelSerializer):
+class TagTreeSerializer(ModelSerializer):
     children = SerializerMethodField()
 
     class Meta:
-        model = Category
+        model = Tag
         fields = ['id', 'name', 'children']
 
     def get_children(self, obj):
         # Ensure children are filtered by the same vendor if needed for consistency,
         # though typically the parent is enough to constrain the tree.
         # This serializer is used for read-only tree structure.
-        children = obj.subcategories.all().order_by('name') # Order children for consistent display
-        return CategoryTreeSerializer(children, many=True).data
+        children = obj.subtags.all().order_by('name') # Order children for consistent display
+        return TagTreeSerializer(children, many=True).data
 #:
 
 
@@ -129,32 +129,34 @@ class CommandFullSerializer(ModelSerializer):
 
 class CommandBasicSerializer(ModelSerializer):
     vendor = StringRelatedField()
-    os = StringRelatedField(allow_null=True)
-    category = StringRelatedField(allow_null=True)
+    platform = StringRelatedField(allow_null=True)
+    tag = StringRelatedField(allow_null=True)
 
     class Meta:
         model = Commands
-        fields = ['id', 'command', 'description', 'example', 'version', 'vendor', 'os', 'category']
+        fields = ['id', 'command', 'description', 'example', 'version', 'vendor', 'platform', 'tag', 'method']
 #:
 
 class CSVUploadSerializer(serializers.Serializer):
     csv_file = serializers.FileField()
-    vendor = serializers.PrimaryKeyRelatedField(queryset=Vendor.objects.all()) # Changed from vendor_name
-    main_category = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.all(),
+    vendor = serializers.PrimaryKeyRelatedField(queryset=Vendor.objects.all())
+    main_tag = serializers.PrimaryKeyRelatedField(
+        queryset=Tag.objects.all(),
         required=False,
-        allow_null=True # Allow null for optional category
-    ) # Changed from main_category
+        allow_null=True # Allow null for optional tag
+    )
 
     def validate(self, data):
-        # Additional validation to ensure main_category (if provided) belongs to the selected vendor
+        print(data)
+        # Additional validation to ensure main_tag (if provided) belongs to the selected vendor
         vendor = data.get('vendor')
-        main_category = data.get('main_category')
+        main_tag = data.get('main_tag')
 
-        if main_category and vendor:
-            if main_category.vendor != vendor:
+        if main_tag and vendor:
+            if main_tag.vendor != vendor:
                 raise serializers.ValidationError({
-                    'main_category': 'The selected main category does not belong to the selected vendor.'
+                    'main_tag': 'The selected main tag does not belong to the selected vendor.'
                 })
         return data
+    #:
 #:

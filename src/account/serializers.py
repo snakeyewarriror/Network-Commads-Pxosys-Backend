@@ -152,5 +152,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             # If email or password is not provided (should be caught by required=True in serializer fields)
             raise serializers.ValidationError("Must include 'email' and 'password'.")
         #:
+    #:
 #:
 
