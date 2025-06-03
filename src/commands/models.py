@@ -114,7 +114,7 @@ class Tag(models.Model):
         unique_together = ('name', 'vendor', 'parent')
 #:
 
-    
+
 # Command Model
 class Commands(models.Model):
     

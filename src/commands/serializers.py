@@ -145,6 +145,7 @@ class CSVUploadSerializer(serializers.Serializer):
         required=False,
         allow_null=True # Allow null for optional tag
     )
+    override = serializers.BooleanField(default=False, required=False)
 
     def validate(self, data):
         print(data)

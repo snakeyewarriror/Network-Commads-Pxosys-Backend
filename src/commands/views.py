@@ -320,12 +320,13 @@ class CommandCSVUploadView(APIView):
             csv_file = serializer.validated_data.get('csv_file')
             vendor_obj = serializer.validated_data.get('vendor')
             main_tag_obj = serializer.validated_data.get('main_tag')
+            override_existing = serializer.validated_data.get('override')
 
-            # --- NEW: Lists to store detailed results ---
+            # Lists to store detailed results
             created_commands_details = []
+            updated_commands_details = []
             skipped_commands_details = []
             created_tags_details = []
-            # --- END NEW ---
 
             try:
                 raw_file_content = csv_file.read()
@@ -360,6 +361,7 @@ class CommandCSVUploadView(APIView):
                     # Handle main_tag_obj being a name from input and needing creation as root
                     if csv_parsed_tags_parent is None and serializer.initial_data.get('main_tag'):
                         main_tag_name_from_input = serializer.initial_data.get('main_tag')
+                        
                         csv_parsed_tags_parent, created = Tag.objects.get_or_create(
                             name__iexact=main_tag_name_from_input,
                             vendor=vendor_obj,
@@ -369,6 +371,7 @@ class CommandCSVUploadView(APIView):
                                 'created_by': request.user if request.user.is_authenticated else None
                             }
                         )
+                        
                         if created:
                             tags_created_count += 1
                             created_tags_details.append({
@@ -376,6 +379,8 @@ class CommandCSVUploadView(APIView):
                                 'parent': csv_parsed_tags_parent.parent.name if csv_parsed_tags_parent.parent else None,
                                 'status': 'Created (Main Tag)'
                             })
+                        #:
+                    #:
                     
                     # Process tags found in CSV
                     for cat_info in parsed_data.get('tags', []):
@@ -385,7 +390,8 @@ class CommandCSVUploadView(APIView):
                             # This is the main tag itself, not a new child created from CSV
                             tag_obj = csv_parsed_tags_parent
                             created = False
-                            # Optional: you could add a detail for this, e.g., 'Main Tag Used'
+                        #:
+                        
                         else:
                             tag_obj, created = Tag.objects.get_or_create(
                                 name__iexact=tag_name,
@@ -396,6 +402,8 @@ class CommandCSVUploadView(APIView):
                                     'created_by': request.user if request.user.is_authenticated else None
                                 }
                             )
+                        #:
+                        
                         if created:
                             tags_created_count += 1
                             created_tags_details.append({
@@ -423,6 +431,7 @@ class CommandCSVUploadView(APIView):
                                     parent=csv_parsed_tags_parent # Ensure it's under the desired parent
                                 )
                             #:
+                            
                             except Tag.DoesNotExist:
                                 # If it doesn't exist, create it under the 'csv_parsed_tags_parent'
                                 final_command_tag_obj, _ = Tag.objects.get_or_create(
@@ -443,6 +452,7 @@ class CommandCSVUploadView(APIView):
                                     })
                             #:
                         #:
+                        
                         elif csv_parsed_tags_parent:
                             final_command_tag_obj = csv_parsed_tags_parent
                         #:
@@ -454,34 +464,28 @@ class CommandCSVUploadView(APIView):
                             defaults={'created_by': request.user if request.user.is_authenticated else None}
                         )
 
-                        existing_command = Commands.objects.filter(
-                            command__iexact=command_name,
-                            vendor=vendor_obj
-                        ).first()
-
-                        if existing_command:
-                            print(f"Skipping duplicate command: '{command_name}' for vendor '{vendor_obj.name}'")
-                            skipped_commands_details.append({
-                                'command': command_name,
-                                'reason': 'Duplicate command for vendor',
-                                'status': 'Skipped'
-                            })
-                            continue
-                        #:
+                        lookup_params = {
+                            'command__iexact': command_name,
+                            'vendor': vendor_obj,
+                        }
+                        
+                        defaults = {
+                            'command': command_name,
+                            'description': description,
+                            'example': example,
+                            'tag': final_command_tag_obj,
+                            'platform': platform_obj,
+                            'created_by': request.user if request.user.is_authenticated else None,
+                            'method': 'BULK'
+                        }
 
                         try:
-                            command_obj, created = Commands.objects.get_or_create(
-                                command=command_name,
-                                vendor=vendor_obj,
-                                tag=final_command_tag_obj,
-                                platform=platform_obj,
-                                defaults={
-                                    'description': description,
-                                    'example': example,
-                                    'created_by': request.user if request.user.is_authenticated else None,
-                                    'method': 'BULK'
-                                }
+                            
+                            command_obj, created = Commands.objects.update_or_create(
+                                **lookup_params,
+                                defaults=defaults
                             )
+                            
                             if created:
                                 commands_created_count += 1
                                 created_commands_details.append({
@@ -490,17 +494,35 @@ class CommandCSVUploadView(APIView):
                                     'tag': command_obj.tag.name if command_obj.tag else 'N/A',
                                     'status': 'Created Successfully'
                                 })
-                            # Note: get_or_create won't return 'created=False' if you always provide unique command names
-                            # in your CSV due to the 'existing_command' check. If that check changes, you'd add
-                            # an else block here to record existing commands differently if needed.
+                            #:
+                                
+                            elif override_existing: # If the command was note created and a the override bool is true
+                                updated_commands_details.append({
+                                    'command': command_obj.command,
+                                    'description': command_obj.description,
+                                    'tag': command_obj.tag.name if command_obj.tag else 'N/A',
+                                    'status': 'Updated Successfully'
+                                })
+                            #:
+                                
+                            else: # Existed, but update_existing is False, so skip
+                                skipped_commands_details.append({
+                                    'command': command_name,
+                                    'reason': 'Command already exists and update_existing flag is false',
+                                    'status': 'Skipped'
+                                })
+                            #:
+                            
                         except Exception as create_error:
                             # Catching any other errors during command creation (e.g., validation)
                             skipped_commands_details.append({
                                 'command': command_name,
-                                'reason': f'Error during creation: {str(create_error)}',
+                                'reason': f'Error during creation/updating: {str(create_error)}',
                                 'status': 'Failed'
                             })
-                            print(f"Error creating command '{command_name}': {create_error}")
+                            print(f"Error creating/updating command '{command_name}': {create_error}")
+                        #:
+                    #:
 
                 return Response(
                     {
@@ -511,12 +533,14 @@ class CommandCSVUploadView(APIView):
                             'summary': {
                                 'total_commands_in_csv': total_commands_processed,
                                 'commands_created': commands_created_count,
+                                'commands_updated': len(updated_commands_details),
                                 'commands_skipped': len(skipped_commands_details),
                                 'total_tags_in_csv': total_tags_processed,
                                 'tags_created': tags_created_count,
                             },
                             'details': {
                                 'created_commands': created_commands_details,
+                                'updated_commands': updated_commands_details,
                                 'skipped_commands': skipped_commands_details,
                                 'created_tags': created_tags_details,
                             }
