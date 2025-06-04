@@ -2,7 +2,7 @@ from commands.models import Commands
 import django_filters.rest_framework
 
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.generics import CreateAPIView, ListAPIView, DestroyAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, UpdateAPIView, DestroyAPIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.permissions import AllowAny
 from rest_framework.pagination import PageNumberPagination
@@ -50,6 +50,18 @@ class VendorCreateAPIView(CreateAPIView):
     #:
 #:
 
+# Update
+class VendorUpdateAPIView(UpdateAPIView):
+    queryset = Vendor.objects.all()
+    serializer_class = VendorFullSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    
+    def perform_update(self, serializer):
+        serializer.save()
+    #:
+#:
+
 # Read
 class UserVendorListSet(ListAPIView):
     serializer_class = VendorFullSerializer
@@ -83,16 +95,16 @@ class UserVendorDelete(DestroyAPIView):
 # Platforms
 
 # CRUD Admin
-class AdminOSViewSet(ModelViewSet):
+class AdminPlatformViewSet(ModelViewSet):
     queryset = Platform.objects.all()
-    serializer_class = OSFullSerializer
+    serializer_class = PlatformFullSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
 #:
 
 # Create
-class OSCreateAPIView(CreateAPIView):
+class PlatformCreateAPIView(CreateAPIView):
     queryset = Platform.objects.all()
-    serializer_class = OSFullSerializer
+    serializer_class = PlatformFullSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     # Override perform_create to automatically set created_by
@@ -101,9 +113,21 @@ class OSCreateAPIView(CreateAPIView):
     #:
 #:
 
+# Update
+class PlatformUpdateAPIView(UpdateAPIView):
+    queryset = Platform.objects.all()
+    serializer_class = PlatformFullSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    
+    def perform_update(self, serializer):
+        serializer.save()
+    #:
+#:
+
 # Read
-class UserOSListSet(ListAPIView):
-    serializer_class = OSFullSerializer
+class UserPlatformListSet(ListAPIView):
+    serializer_class = PlatformFullSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     def get_queryset(self):
@@ -120,9 +144,9 @@ class UserOSListSet(ListAPIView):
     #:
 #:
 
-class OSListSet(ListAPIView):
+class PlatformListSet(ListAPIView):
     queryset = Platform.objects.all()
-    serializer_class = OSBasicSerializer
+    serializer_class = PlatformBasicSerializer
     permission_classes = [AllowAny]
     authentication_classes = []
 
@@ -141,8 +165,8 @@ class OSListSet(ListAPIView):
 #:
 
 # Delete
-class UserOSDelete(DestroyAPIView):
-    serializer_class = OSFullSerializer
+class UserPlatformDelete(DestroyAPIView):
+    serializer_class = PlatformFullSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     def get_queryset(self):
@@ -170,6 +194,21 @@ class TagCreateAPIView(CreateAPIView):
     # Override perform_create to automatically set created_by
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+    #:
+#:
+
+# Update
+class TagUpdateAPIView(UpdateAPIView):
+    queryset = Tag.objects.all()
+    serializer_class = TagFullSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    
+    lookup_field = 'name'
+    
+    
+    def perform_update(self, serializer):
+        serializer.save()
     #:
 #:
 
@@ -265,6 +304,59 @@ class CommandCreateAPIView(CreateAPIView):
         #:
 #:
 
+# Update
+class CommandUpdateAPIView(UpdateAPIView):
+    queryset = Commands.objects.all()
+    serializer_class = CommandFullSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    
+    def perform_update(self, serializer):
+        serializer.save()
+#:
+
+# Checks if the command exists
+class CommandExistsAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get(self, request, *args, **kwargs):
+        command_name = request.query_params.get('command_name')
+        vendor_id = request.query_params.get('vendor_id')
+
+        if not command_name or not vendor_id:
+            return Response(
+                {'error': 'Both command_name and vendor_id are required query parameters.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        #:
+
+        try:
+            vendor_obj = Vendor.objects.get(pk=vendor_id)
+        #:
+            
+        except Vendor.DoesNotExist:
+            return Response(
+                {'error': 'Vendor not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        #:
+
+        # Use iexact for case-insensitive command name lookup
+        command_obj = Commands.objects.filter(
+            command__iexact=command_name,
+            vendor=vendor_obj
+        ).first()
+
+        if command_obj:
+            return Response({'exists': True, 'id': command_obj.id}, status=status.HTTP_200_OK)
+        #:
+        
+        else:
+            return Response({'exists': False}, status=status.HTTP_200_OK)
+        #:
+    #:
+#:
+
 # Read
 class UserCommandListSet(ListAPIView):
     serializer_class = CommandFullSerializer
@@ -349,9 +441,6 @@ class CommandCSVUploadView(APIView):
                     main_tag_name_for_csv_context=main_tag_obj.name if main_tag_obj else None
                 )
 
-                # These counts will still be useful for the summary
-                tags_created_count = 0
-                commands_created_count = 0
                 total_commands_processed = len(parsed_data.get('commands', []))
                 total_tags_processed = len(parsed_data.get('tags', []))
 
@@ -373,7 +462,6 @@ class CommandCSVUploadView(APIView):
                         )
                         
                         if created:
-                            tags_created_count += 1
                             created_tags_details.append({
                                 'name': csv_parsed_tags_parent.name,
                                 'parent': csv_parsed_tags_parent.parent.name if csv_parsed_tags_parent.parent else None,
@@ -405,7 +493,6 @@ class CommandCSVUploadView(APIView):
                         #:
                         
                         if created:
-                            tags_created_count += 1
                             created_tags_details.append({
                                 'name': tag_obj.name,
                                 'parent': tag_obj.parent.name if tag_obj.parent else None,
@@ -444,7 +531,6 @@ class CommandCSVUploadView(APIView):
                                     }
                                 )
                                 if _:
-                                    tags_created_count += 1
                                     created_tags_details.append({
                                         'name': final_command_tag_obj.name,
                                         'parent': final_command_tag_obj.parent.name if final_command_tag_obj.parent else None,
@@ -487,7 +573,6 @@ class CommandCSVUploadView(APIView):
                             )
                             
                             if created:
-                                commands_created_count += 1
                                 created_commands_details.append({
                                     'command': command_obj.command,
                                     'description': command_obj.description,
@@ -532,11 +617,11 @@ class CommandCSVUploadView(APIView):
                             'main_tag_name': main_tag_obj.name if main_tag_obj else 'N/A',
                             'summary': {
                                 'total_commands_in_csv': total_commands_processed,
-                                'commands_created': commands_created_count,
+                                'commands_created': len(created_commands_details),
                                 'commands_updated': len(updated_commands_details),
                                 'commands_skipped': len(skipped_commands_details),
                                 'total_tags_in_csv': total_tags_processed,
-                                'tags_created': tags_created_count,
+                                'tags_created': len(created_tags_details),
                             },
                             'details': {
                                 'created_commands': created_commands_details,

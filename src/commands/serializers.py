@@ -31,7 +31,7 @@ class VendorBasicSerializer(ModelSerializer):
 
 
 # Platform Model Serializers
-class OSFullSerializer(ModelSerializer):
+class PlatformFullSerializer(ModelSerializer):
     class Meta:
         model = Platform
         fields = '__all__'
@@ -52,7 +52,7 @@ class OSFullSerializer(ModelSerializer):
         return data
 #:
 
-class OSBasicSerializer(ModelSerializer):
+class PlatformBasicSerializer(ModelSerializer):
     class Meta:
         model = Platform
         fields = ['id', 'name']
